@@ -1,0 +1,1 @@
+g++ -IC:\SFML-2.5.1\include reproductorMusica.cpp -o reproductorMusica -LC:\SFML-2.5.1\lib -lsfml-audio -lsfml-graphics -lsfml-window -lsfml-system
