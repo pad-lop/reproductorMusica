@@ -10,7 +10,15 @@
 #include <SFML/Audio.hpp>
 #include <SFML/Window/Keyboard.hpp>
 
+#include <thread>
+#include <chrono>
+#include <mutex>
+
 using namespace std;
+
+bool reproduciendo = false;
+bool enPausa = false;
+std::mutex mtx;
 
 bool esEntero(const string &dato)
 {
@@ -183,7 +191,7 @@ string convertirRuta(const string &rutaOriginal)
             // Omitir comillas
             break;
         default:
-            // Mantener los demás caracteres sin cambios
+            // Mantener los demas caracteres sin cambios
             rutaConvertida.push_back(caracter);
         }
     }
@@ -268,12 +276,17 @@ class ListaCircular
 private:
     Nodo<T> *ptrCabeza;
 
+    bool reproducirCancion();
+    void gestionarPausa(bool &isPaused);
+
 public:
     ListaCircular();
     ~ListaCircular();
 
     sf::Music musicPlayer;
     void reproducirMusica();
+    void pausarMusica();
+
 
     void buscar_por_posicion(int posicion);
     void buscar_nombre(T);
@@ -296,7 +309,7 @@ public:
     void cargar_desde_archivo(string);
 
     // Herramientas
-    //bool validarDirectorio(const T &directorio_);
+    // bool validarDirectorio(const T &directorio_);
 };
 
 template <typename T>
@@ -374,7 +387,6 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
         getline(archivo, album, ',');
         getline(archivo, genero, ',');
         getline(archivo, directorio);
-        
 
         if (!id.empty() && !nombre.empty())
         {
@@ -389,7 +401,7 @@ template <typename T>
 bool ListaCircular<T>::validarDirectorio(const T &directorio_)
 {
     do {
-        
+
     }
     if (filesystem::exists(directorio_))
     {
@@ -397,7 +409,7 @@ bool ListaCircular<T>::validarDirectorio(const T &directorio_)
     }
     else
     {
-        cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
+        cout << "\033[1;31m ERR: Directorio no valido o archivo no encontrado \033[0m\n"
              << endl;
         system("pause");
 
@@ -411,7 +423,6 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
 {
     Nodo<T> *nuevoNodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
     nuevoNodo->duracion = getAudioFileDuration(directorio_);
-
 
     if (!ptrCabeza)
     {
@@ -449,7 +460,6 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
             nuevoNodo->siguiente = ptrCabeza;
             ptrCabeza = nuevoNodo;
             ultimo->siguiente = ptrCabeza;
-
         }
     }
 }
@@ -499,7 +509,7 @@ void ListaCircular<T>::buscar_por_posicion(int posicion)
 {
     if (ptrCabeza == nullptr)
     {
-        cout << "La lista está vacía. No se puede buscar por posición." << endl;
+        cout << "La lista esta vacia. No se puede buscar por posicion." << endl;
         return;
         system("pause");
     }
@@ -511,7 +521,7 @@ void ListaCircular<T>::buscar_por_posicion(int posicion)
     {
         if (count == posicion)
         {
-            cout << "\033[1;32m Cancion encontrado en la posición " << posicion << " \033[0m" << endl
+            cout << "\033[1;32m Cancion encontrado en la posicion " << posicion << " \033[0m" << endl
                  << endl;
             temp->imprimir_nodo();
             system("pause");
@@ -522,7 +532,7 @@ void ListaCircular<T>::buscar_por_posicion(int posicion)
         count++;
     } while (temp != ptrCabeza);
 
-    cout << "\033[1;31m Cancion no encontrado en la posición " << posicion << " \033[0m" << endl
+    cout << "\033[1;31m Cancion no encontrado en la posicion " << posicion << " \033[0m" << endl
          << endl;
 
     system("pause");
@@ -583,7 +593,7 @@ void ListaCircular<T>::modificar(T id_, T nuevo_id, T nuevo_nombre, T nuevo_arti
 
     if (!modificado)
     {
-        cout << "\033[1;31m Cancion no encontrado. No se realizó ninguna modificación. \033[0m\n"
+        cout << "\033[1;31m Cancion no encontrado. No se realizo ninguna modificacion. \033[0m\n"
              << endl
              << endl;
     }
@@ -636,7 +646,7 @@ void ListaCircular<T>::eliminar(T id_)
 
     if (!eliminado)
     {
-        cout << "\033[1;31m Cancion no encontrado. No se realizó ninguna eliminación. \033[0m\n"
+        cout << "\033[1;31m Cancion no encontrado. No se realizo ninguna eliminacion. \033[0m\n"
              << endl
              << endl;
     }
@@ -649,7 +659,7 @@ void ListaCircular<T>::imprimir_lista()
 
     if (!ptrCabeza)
     {
-        cout << "\033[1;31m Lista vacía \033[0m\n"
+        cout << "\033[1;31m Lista vacia \033[0m\n"
              << endl
              << endl;
     }
@@ -675,7 +685,7 @@ void ListaCircular<T>::invertir()
 {
     if (!ptrCabeza || !ptrCabeza->siguiente)
     {
-        return; // La lista está vacía o solo tiene un elemento, no se puede invertir.
+        return; // La lista esta vacia o solo tiene un elemento, no se puede invertir.
     }
 
     Nodo<T> *current = ptrCabeza;
@@ -689,7 +699,7 @@ void ListaCircular<T>::invertir()
         current = temp;
     } while (current != ptrCabeza);
 
-    // Actualizar el puntero de la cabeza para que apunte al último elemento invertido.
+    // Actualizar el puntero de la cabeza para que apunte al ultimo elemento invertido.
     ptrCabeza->siguiente = prev;
     ptrCabeza = prev;
 }
@@ -701,7 +711,7 @@ void ListaCircular<T>::ordenar_por_nombre()
 
     if (current == nullptr)
     {
-        cout << "La lista está vacía. No se puede ordenar." << endl;
+        cout << "La lista esta vacia. No se puede ordenar." << endl;
         return;
     }
 
@@ -729,7 +739,7 @@ void ListaCircular<T>::ordenar_por_nombre()
     } while (current != ptrCabeza);
 
     cout << endl
-         << "\033[1;32mLista Ordenada Alfabéticamente \033[0m\n"
+         << "\033[1;32mLista Ordenada Alfabeticamente \033[0m\n"
          << endl;
 }
 
@@ -738,7 +748,7 @@ void ListaCircular<T>::ordenar_ascendentemente()
 {
     if (ptrCabeza == nullptr)
     {
-        cout << "La lista está vacía. No se puede ordenar." << endl;
+        cout << "La lista esta vacia. No se puede ordenar." << endl;
         return;
     }
 
@@ -754,7 +764,7 @@ void ListaCircular<T>::ordenar_ascendentemente()
             int id1 = stoi(min->id);  // Convertir ID a entero
             int id2 = stoi(temp->id); // Convertir ID a entero
 
-            if (id2 < id1) // Comparar IDs como números enteros
+            if (id2 < id1) // Comparar IDs como numeros enteros
             {
                 min = temp;
             }
@@ -780,7 +790,7 @@ void ListaCircular<T>::ordenar_descendentemente()
 {
     if (ptrCabeza == nullptr)
     {
-        cout << "La lista está vacía. No se puede ordenar." << endl;
+        cout << "La lista esta vacia. No se puede ordenar." << endl;
         return;
     }
 
@@ -796,7 +806,7 @@ void ListaCircular<T>::ordenar_descendentemente()
             int id1 = stoi(max->id);  // Convertir ID a entero
             int id2 = stoi(temp->id); // Convertir ID a entero
 
-            if (id2 > id1) // Comparar IDs como números enteros
+            if (id2 > id1) // Comparar IDs como numeros enteros
             {
                 max = temp;
             }
@@ -844,109 +854,85 @@ void ListaCircular<T>::vaciar()
          << endl;
 }
 
-
-
 template <typename T>
 void ListaCircular<T>::reproducirMusica()
 {
-
-    if (ptrCabeza)
-    {
-        do
-        {
-            if (filesystem::path(ptrCabeza->directorio).extension() == ".wav")
-            {
-                if (musicPlayer.openFromFile(ptrCabeza->directorio))
-                {
-                    cout << "Reproduciendo la siguiente canción..." << endl;
-                    musicPlayer.play();
-                    cout << "Reproduciendo: " << ptrCabeza->nombre << " - Artista: " << ptrCabeza->artista << endl;
-
-                    bool isPaused = false;
-
-                    while (musicPlayer.getStatus() == sf::Music::Playing)
-                    {
-                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
-                        {
-                            if (!isPaused)
-                            {
-                                musicPlayer.pause();
-                                isPaused = true;
-                                cout << "Pausado" << endl;
-                            }
-                        }
-                        else if (isPaused)
-                        {
-                            musicPlayer.play();
-                            isPaused = false;
-                            cout << "Reanudado" << endl;
-                        }
-
-                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
-                        {
-                            musicPlayer.stop();
-                            break;
-                        }
-                    }
-
-                    musicPlayer.stop();
-                }
-                else
-                {
-                    cerr << "Error al abrir el archivo de audio: " << ptrCabeza->directorio << endl;
-                }
-            }
-            else
-            {
-                cerr << "Formato de archivo no compatible: " << ptrCabeza->directorio << endl;
-            }
-
-            ptrCabeza = ptrCabeza->siguiente;
-        } while (true);
-    }
-    else
-    {
-        cout << "La lista de reproducción está vacía." << endl;
-        system("pause");
-    }
-}
-
-
-/*
-template <typename T>
-void ListaCircular<T>::imprimir_lista()
-{
-    Nodo<T> *temp = ptrCabeza;
-
     if (!ptrCabeza)
     {
-        cout << "\033[1;31m Lista vacía \033[0m\n"
-             << endl
-             << endl;
+        cout << "La lista de reproduccion esta vacia." << endl;
+        system("pause");
+        return;
     }
-    else
-    {
-        cout << "\033[1;32m Lista de Canciones \033[0m" << endl
-             << endl;
-        int count = 1;
 
-        do
-        {
+    std::thread reproduccionThread(&ListaCircular<T>::reproducirCancion, this);
+        std::lock_guard<std::mutex> lock(mtx); // Bloquea el mutex para acceder a las variables compartidas
 
+musicPlayer.play();
+enPausa = false;
+cout << "Reproduccion reanudada." << endl;
 
-
-            cout << "Cancion " << count << ":" << endl;
-            temp->imprimir_nodo();
-            cout << endl;
-    
-
-    
-            temp = temp->siguiente;
-            count++;
-        } while (temp != ptrCabeza);
-    }
+    reproduccionThread.join(); // Espera a que el hilo de reproducción termine
 }
-*/
+
+
+
+template <typename T>
+void ListaCircular<T>::pausarMusica()
+{
+    if (!ptrCabeza)
+    {
+        cout << "La lista de reproduccion esta vacia." << endl;
+        system("pause");
+        return;
+    }
+
+
+ musicPlayer.pause();
+                enPausa = true;
+                cout << "Reproduccion pausada." << endl;
+}
+
+
+template <typename T>
+bool ListaCircular<T>::reproducirCancion()
+{
+    std::lock_guard<std::mutex> lock(mtx); // Bloquea el mutex para acceder a las variables compartidas
+
+    if (reproduciendo)
+    {
+        cerr << "Ya se está reproduciendo una canción." << endl;
+        return false;
+    }
+
+    reproduciendo = true;
+
+    if (filesystem::path(ptrCabeza->directorio).extension() != ".wav")
+    {
+        cerr << "Formato de archivo no compatible: " << ptrCabeza->directorio << endl;
+        reproduciendo = false;
+        return false;
+    }
+
+    if (!musicPlayer.openFromFile(ptrCabeza->directorio))
+    {
+        cerr << "Error al abrir el archivo de audio: " << ptrCabeza->directorio << endl;
+        reproduciendo = false;
+        return false;
+    }
+
+    cout << "Reproduciendo la siguiente canción..." << endl;
+    musicPlayer.play();
+    cout << "Reproduciendo: " << ptrCabeza->nombre << " - Artista: " << ptrCabeza->artista << endl;
+
+    // Esperar hasta que la reproducción termine o se detenga manualmente
+    while (musicPlayer.getStatus() == sf::Music::Playing && reproduciendo)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    reproduciendo = false;
+    return true;
+}
 
 int main()
 {
@@ -973,7 +959,7 @@ int main()
              << "7) Ordenar Descendente\n"
 
              << "8) Ordenar por Nombre\n"
-             
+
              << "9) Invertir\n"
 
              << "10) Vaciar Lista\n"
@@ -982,6 +968,9 @@ int main()
              << "12) Cargar de .txt - Se sobreescribe la lista\n"
 
              << "13) Reproducir Musica\n"
+             << "14) Pausar Musica\n"
+             << "15) Siguiente Cancion\n"
+             << "16) Anterior Cancion\n"
 
              << "0) Salir\n"
 
@@ -1041,7 +1030,7 @@ int main()
             break;
         case 3:
             int posicion;
-            validarParametroEntero(&posicion, opc1_validar, "Ingrese la posición a buscar");
+            validarParametroEntero(&posicion, opc1_validar, "Ingrese la posicion a buscar");
             lista_circular.buscar_por_posicion(posicion);
             break;
         case 4:
@@ -1103,10 +1092,17 @@ int main()
             break;
         case 13:
             lista_circular.reproducirMusica();
-
+            break;
+        case 14:
+            lista_circular.pausarMusica();
+            break;
+        case 15:
+            // Siguiente canción
+            break;
+        case 16:
+            // Anterior canción
             break;
         default:
-            cout << "Opcion invalida" << endl;
             break;
         }
     } while (opc1 != 0);
