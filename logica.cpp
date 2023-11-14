@@ -7,6 +7,9 @@
 
 #include <locale>
 
+#include <SFML/Audio.hpp>
+#include <SFML/Window/Keyboard.hpp>
+
 using namespace std;
 
 bool esEntero(const string &dato)
@@ -51,13 +54,14 @@ void validarParametroEntero(int *x, string x_prevalidar, string texto)
     *x = stod(x_prevalidar);
 }
 
-double getAudioFileDuration(const string &filename)
+double getAudioFileDuration(const std::string &filename)
 {
-    ifstream file(filename, ios::binary);
+    std::ifstream file(filename, std::ios::binary);
 
     if (!file.is_open())
     {
-        cerr << "Error opening file " << filename << endl;
+        std::cerr << "Error opening file " << filename << std::endl;
+        system("pause");
         return -1.0; // Indicates an error
     }
 
@@ -65,9 +69,10 @@ double getAudioFileDuration(const string &filename)
     char chunkID[4];
     file.read(chunkID, 4);
 
-    if (string(chunkID, 4) != "RIFF")
+    if (std::string(chunkID, 4) != "RIFF")
     {
-        cerr << "Not a valid RIFF file" << endl;
+        std::cerr << "Not a valid RIFF file" << std::endl;
+        system("pause");
         return -1.0; // Indicates an error
     }
 
@@ -79,9 +84,11 @@ double getAudioFileDuration(const string &filename)
     char format[4];
     file.read(format, 4);
 
-    if (string(format, 4) != "WAVE")
+    if (std::string(format, 4) != "WAVE")
     {
-        cerr << "Not a valid WAVE file" << endl;
+        std::cerr << "Not a valid WAVE file" << std::endl;
+
+        system("pause");
         return -1.0; // Indicates an error
     }
 
@@ -91,10 +98,10 @@ double getAudioFileDuration(const string &filename)
         char subchunkID[4];
         file.read(subchunkID, 4);
 
-        if (string(subchunkID, 4) == "fmt ")
+        if (std::string(subchunkID, 4) == "fmt ")
         {
             // Skip the next 4 bytes (subchunk size)
-            file.seekg(4, ios::cur);
+            file.seekg(4, std::ios::cur);
 
             // Read the audio format (should be 1 for PCM)
             uint16_t audioFormat;
@@ -102,7 +109,9 @@ double getAudioFileDuration(const string &filename)
 
             if (audioFormat != 1)
             {
-                cerr << "Unsupported audio format" << endl;
+                std::cerr << "Unsupported audio format" << std::endl;
+        system("pause");
+
                 return -1.0; // Indicates an error
             }
 
@@ -115,7 +124,7 @@ double getAudioFileDuration(const string &filename)
             file.read(reinterpret_cast<char *>(&sampleRate), sizeof(sampleRate));
 
             // Skip the next 6 bytes
-            file.seekg(6, ios::cur);
+            file.seekg(6, std::ios::cur);
 
             // Read the bits per sample
             uint16_t bitsPerSample;
@@ -127,24 +136,24 @@ double getAudioFileDuration(const string &filename)
                 char subchunkID[4];
                 file.read(subchunkID, 4);
 
-                if (string(subchunkID, 4) == "data")
+                if (std::string(subchunkID, 4) == "data")
                 {
                     // Skip the next 4 bytes (subchunk size)
-                    file.seekg(4, ios::cur);
+                    file.seekg(4, std::ios::cur);
 
                     // Calculate the duration based on file size
                     double duration = static_cast<double>(fileSize - 44) / (numChannels * bitsPerSample / 8.0) / sampleRate;
 
                     // Close the file and return the duration
                     file.close();
-                    return static_cast<int>(duration);
+                    return duration;
                 }
                 else
                 {
                     // Skip the subchunk size
                     uint32_t subchunkSize;
                     file.read(reinterpret_cast<char *>(&subchunkSize), sizeof(subchunkSize));
-                    file.seekg(subchunkSize, ios::cur);
+                    file.seekg(subchunkSize, std::ios::cur);
                 }
             }
         }
@@ -153,7 +162,7 @@ double getAudioFileDuration(const string &filename)
             // Skip the subchunk size
             uint32_t subchunkSize;
             file.read(reinterpret_cast<char *>(&subchunkSize), sizeof(subchunkSize));
-            file.seekg(subchunkSize, ios::cur);
+            file.seekg(subchunkSize, std::ios::cur);
         }
     }
 }
@@ -263,6 +272,9 @@ public:
     ListaCircular();
     ~ListaCircular();
 
+    sf::Music musicPlayer;
+    void reproducirMusica();
+
     void buscar_por_posicion(int posicion);
     void buscar_nombre(T);
     void modificar(T, T, T, T, T, T, T);
@@ -345,6 +357,8 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
     if (!archivo)
     {
         cout << "\033[1;31m ERR: No se pudo abrir el archivo \033[0m" << endl;
+        system("pause");
+
         return;
     }
 
@@ -389,7 +403,9 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
                 existeID = true;
                 cout << "\033[1;31m ERR: ID previamente registrado \033[0m\n"
                      << endl;
+
                 delete nuevo_nodo;
+                system("pause");
                 break;
             }
             temp = temp->siguiente;
@@ -419,6 +435,8 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
             cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
                  << endl;
             delete nuevo_nodo;
+        system("pause");
+
             return;
         }
     }
@@ -453,13 +471,13 @@ void ListaCircular<T>::agregar_al_final(T id_, T nombre_, T artista_, T album_, 
                 }
                 temp = temp->siguiente;
             }
+
             if (contador == 0)
             {
                 nuevo_nodo->siguiente = temp->siguiente;
                 temp->siguiente = nuevo_nodo;
             }
 
-            // Validar el directorio y calcular la duración
             if (filesystem::exists(directorio_))
             {
                 nuevo_nodo->duracion = getAudioFileDuration(directorio_);
@@ -483,6 +501,7 @@ void ListaCircular<T>::buscar_por_posicion(int posicion)
     {
         cout << "La lista está vacía. No se puede buscar por posición." << endl;
         return;
+        system("pause");
     }
 
     Nodo<T> *temp = ptrCabeza;
@@ -495,6 +514,8 @@ void ListaCircular<T>::buscar_por_posicion(int posicion)
             cout << "\033[1;32m Cancion encontrado en la posición " << posicion << " \033[0m" << endl
                  << endl;
             temp->imprimir_nodo();
+            system("pause");
+
             return;
         }
         temp = temp->siguiente;
@@ -503,6 +524,8 @@ void ListaCircular<T>::buscar_por_posicion(int posicion)
 
     cout << "\033[1;31m Cancion no encontrado en la posición " << posicion << " \033[0m" << endl
          << endl;
+
+    system("pause");
 }
 
 template <typename T>
@@ -820,11 +843,80 @@ void ListaCircular<T>::vaciar()
          << endl;
 }
 
+template <typename T>
+void ListaCircular<T>::reproducirMusica()
+{
+    Nodo<T> *currentSong = ptrCabeza;
+
+    if (currentSong)
+    {
+        Nodo<T> *startSong = currentSong;
+
+        do
+        {
+            if (filesystem::path(currentSong->directorio).extension() == ".wav")
+            {
+                if (musicPlayer.openFromFile(currentSong->directorio))
+                {
+                    cout << "Reproduciendo la siguiente canción..." << endl;
+                    musicPlayer.play();
+                    cout << "Reproduciendo: " << currentSong->nombre << " - Artista: " << currentSong->artista << endl;
+
+                    bool isPaused = false;
+
+                    while (musicPlayer.getStatus() == sf::Music::Playing)
+                    {
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+                        {
+                            if (!isPaused)
+                            {
+                                musicPlayer.pause();
+                                isPaused = true;
+                                cout << "Pausado" << endl;
+                            }
+                        }
+                        else if (isPaused)
+                        {
+                            musicPlayer.play();
+                            isPaused = false;
+                            cout << "Reanudado" << endl;
+                        }
+
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+                        {
+                            musicPlayer.stop();
+                            break;
+                        }
+                    }
+
+                    musicPlayer.stop();
+                }
+                else
+                {
+                    cerr << "Error al abrir el archivo de audio: " << currentSong->directorio << endl;
+                }
+            }
+            else
+            {
+                cerr << "Formato de archivo no compatible: " << currentSong->directorio << endl;
+            }
+
+            currentSong = currentSong->siguiente;
+        } while (currentSong != startSong);
+    }
+    else
+    {
+        cout << "La lista de reproducción está vacía." << endl;
+    }
+}
+
 int main()
 {
     ListaCircular<string> lista_circular;
     int opc1;
     string opc1_validar;
+
+    cin.ignore();
 
     do
     {
@@ -836,7 +928,7 @@ int main()
              << endl
              << "1) Insertar al Principio\n"
              << "2) Insertar al Final\n"
-             << "3) Buscar por ID\n"
+             << "3) Buscar por Posicion\n"
              << "4) Modificar\n"
              << "5) Remover\n"
 
@@ -850,6 +942,8 @@ int main()
 
              << "11) Guardar en .txt - Se sobreescribe el txt\n"
              << "12) Cargar de .txt - Se sobreescribe la lista\n"
+
+             << "13) Reproducir Musica\n"
 
              << "0) Salir\n"
 
@@ -873,15 +967,15 @@ int main()
             validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
             id = to_string(id_int);
 
-            cout << "--> Ingrese el Nombre: ";
+            cout << "--> Ingrese el  Nombre: ";
             getline(cin, nombre);
-            cout << "--> Ingrese el Artista: ";
+            cout << "--> Ingrese el  Artista: ";
             getline(cin, artista);
-            cout << "--> Ingrese el Album: ";
+            cout << "--> Ingrese el  Album: ";
             getline(cin, album);
-            cout << "--> Ingrese el Genero: ";
+            cout << "--> Ingrese el  Genero: ";
             getline(cin, genero);
-            cout << "--> Ingrese el Directorio: ";
+            cout << "--> Ingrese el  Directorio: ";
             getline(cin, directorio);
 
             directorio = convertirRuta(directorio);
@@ -892,16 +986,17 @@ int main()
             validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
             id = to_string(id_int);
 
-            cout << "--> Ingrese el Nombre: ";
+            cout << "--> Ingrese el  Nombre: ";
             getline(cin, nombre);
-            cout << "--> Ingrese el Artista: ";
+            cout << "--> Ingrese el  Artista: ";
             getline(cin, artista);
-            cout << "--> Ingrese el Album: ";
+            cout << "--> Ingrese el  Album: ";
             getline(cin, album);
-            cout << "--> Ingrese el Genero: ";
+            cout << "--> Ingrese el  Genero: ";
             getline(cin, genero);
-            cout << "--> Ingrese el Directorio: ";
+            cout << "--> Ingrese el  Directorio: ";
             getline(cin, directorio);
+
             directorio = convertirRuta(directorio);
 
             lista_circular.agregar_al_final(id, nombre, artista, album, genero, directorio);
@@ -912,8 +1007,8 @@ int main()
             lista_circular.buscar_por_posicion(posicion);
             break;
         case 4:
-            cout << "--> Ingrese el ID a modificar: ";
-            getline(cin, id);
+            validarParametroEntero(&id_int, id_validar, "Ingrese el ID a Modificar");
+            id = to_string(id_int);
 
             validarParametroEntero(&id_int, id_validar, "Ingrese el nuevo ID");
             nuevo_id = to_string(id_int);
@@ -934,7 +1029,8 @@ int main()
             break;
         case 5:
             cout << "--> Ingrese el ID a eliminar: ";
-            getline(cin, id);
+            cin >> id;
+            cin.ignore();
 
             lista_circular.eliminar(id);
             break;
@@ -965,6 +1061,10 @@ int main()
             cout << "\033[1;32m Lista cargada desde el archivo exitosamente \033[0m\n"
                  << endl;
             system("pause");
+
+            break;
+        case 13:
+            lista_circular.reproducirMusica();
 
             break;
         default:
