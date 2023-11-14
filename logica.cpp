@@ -110,7 +110,7 @@ double getAudioFileDuration(const std::string &filename)
             if (audioFormat != 1)
             {
                 std::cerr << "Unsupported audio format" << std::endl;
-        system("pause");
+                system("pause");
 
                 return -1.0; // Indicates an error
             }
@@ -294,6 +294,9 @@ public:
 
     void guardar_en_archivo(string);
     void cargar_desde_archivo(string);
+
+    // Herramientas
+    //bool validarDirectorio(const T &directorio_);
 };
 
 template <typename T>
@@ -371,6 +374,7 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
         getline(archivo, album, ',');
         getline(archivo, genero, ',');
         getline(archivo, directorio);
+        
 
         if (!id.empty() && !nombre.empty())
         {
@@ -380,16 +384,39 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
 
     archivo.close();
 }
+/*
+template <typename T>
+bool ListaCircular<T>::validarDirectorio(const T &directorio_)
+{
+    do {
+        
+    }
+    if (filesystem::exists(directorio_))
+    {
+        return true
+    }
+    else
+    {
+        cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
+             << endl;
+        system("pause");
+
+        return false
+    }
+}
+*/
 
 template <typename T>
 void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T album_, T genero_, T directorio_)
 {
-    Nodo<T> *nuevo_nodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
+    Nodo<T> *nuevoNodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
+    nuevoNodo->duracion = getAudioFileDuration(directorio_);
+
 
     if (!ptrCabeza)
     {
-        ptrCabeza = nuevo_nodo;
-        nuevo_nodo->siguiente = ptrCabeza;
+        ptrCabeza = nuevoNodo;
+        nuevoNodo->siguiente = ptrCabeza;
     }
     else
     {
@@ -404,7 +431,7 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
                 cout << "\033[1;31m ERR: ID previamente registrado \033[0m\n"
                      << endl;
 
-                delete nuevo_nodo;
+                delete nuevoNodo;
                 system("pause");
                 break;
             }
@@ -419,25 +446,10 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
                 ultimo = ultimo->siguiente;
             }
 
-            nuevo_nodo->siguiente = ptrCabeza;
-            ptrCabeza = nuevo_nodo;
+            nuevoNodo->siguiente = ptrCabeza;
+            ptrCabeza = nuevoNodo;
             ultimo->siguiente = ptrCabeza;
-        }
 
-        // Validar el directorio y calcular la duración
-        if (filesystem::exists(directorio_))
-        {
-            nuevo_nodo->duracion = getAudioFileDuration(directorio_);
-        }
-        else
-        {
-            // El directorio no es válido
-            cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
-                 << endl;
-            delete nuevo_nodo;
-        system("pause");
-
-            return;
         }
     }
 }
@@ -445,13 +457,14 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
 template <typename T>
 void ListaCircular<T>::agregar_al_final(T id_, T nombre_, T artista_, T album_, T genero_, T directorio_)
 {
-    Nodo<T> *nuevo_nodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
+    Nodo<T> *nuevoNodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
+    nuevoNodo->duracion = getAudioFileDuration(directorio_);
     Nodo<T> *temp = ptrCabeza;
 
     int contador = 0;
     if (!ptrCabeza)
     {
-        ptrCabeza = nuevo_nodo;
+        ptrCabeza = nuevoNodo;
     }
     else
     {
@@ -474,21 +487,8 @@ void ListaCircular<T>::agregar_al_final(T id_, T nombre_, T artista_, T album_, 
 
             if (contador == 0)
             {
-                nuevo_nodo->siguiente = temp->siguiente;
-                temp->siguiente = nuevo_nodo;
-            }
-
-            if (filesystem::exists(directorio_))
-            {
-                nuevo_nodo->duracion = getAudioFileDuration(directorio_);
-            }
-            else
-            {
-                // El directorio no es válido
-                cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
-                     << endl;
-                delete nuevo_nodo;
-                return;
+                nuevoNodo->siguiente = temp->siguiente;
+                temp->siguiente = nuevoNodo;
             }
         }
     }
@@ -570,6 +570,7 @@ void ListaCircular<T>::modificar(T id_, T nuevo_id, T nuevo_nombre, T nuevo_arti
             temp->album = nuevo_album;
             temp->genero = nuevo_genero;
             temp->directorio = nuevo_directorio;
+
             temp->duracion = getAudioFileDuration(nuevo_directorio);
 
             cout << "\033[1;32m Cancion modificado. \033[0m" << endl
@@ -843,24 +844,23 @@ void ListaCircular<T>::vaciar()
          << endl;
 }
 
+
+
 template <typename T>
 void ListaCircular<T>::reproducirMusica()
 {
-    Nodo<T> *currentSong = ptrCabeza;
 
-    if (currentSong)
+    if (ptrCabeza)
     {
-        Nodo<T> *startSong = currentSong;
-
         do
         {
-            if (filesystem::path(currentSong->directorio).extension() == ".wav")
+            if (filesystem::path(ptrCabeza->directorio).extension() == ".wav")
             {
-                if (musicPlayer.openFromFile(currentSong->directorio))
+                if (musicPlayer.openFromFile(ptrCabeza->directorio))
                 {
                     cout << "Reproduciendo la siguiente canción..." << endl;
                     musicPlayer.play();
-                    cout << "Reproduciendo: " << currentSong->nombre << " - Artista: " << currentSong->artista << endl;
+                    cout << "Reproduciendo: " << ptrCabeza->nombre << " - Artista: " << ptrCabeza->artista << endl;
 
                     bool isPaused = false;
 
@@ -893,30 +893,66 @@ void ListaCircular<T>::reproducirMusica()
                 }
                 else
                 {
-                    cerr << "Error al abrir el archivo de audio: " << currentSong->directorio << endl;
+                    cerr << "Error al abrir el archivo de audio: " << ptrCabeza->directorio << endl;
                 }
             }
             else
             {
-                cerr << "Formato de archivo no compatible: " << currentSong->directorio << endl;
+                cerr << "Formato de archivo no compatible: " << ptrCabeza->directorio << endl;
             }
 
-            currentSong = currentSong->siguiente;
-        } while (currentSong != startSong);
+            ptrCabeza = ptrCabeza->siguiente;
+        } while (true);
     }
     else
     {
         cout << "La lista de reproducción está vacía." << endl;
+        system("pause");
     }
 }
+
+
+/*
+template <typename T>
+void ListaCircular<T>::imprimir_lista()
+{
+    Nodo<T> *temp = ptrCabeza;
+
+    if (!ptrCabeza)
+    {
+        cout << "\033[1;31m Lista vacía \033[0m\n"
+             << endl
+             << endl;
+    }
+    else
+    {
+        cout << "\033[1;32m Lista de Canciones \033[0m" << endl
+             << endl;
+        int count = 1;
+
+        do
+        {
+
+
+
+            cout << "Cancion " << count << ":" << endl;
+            temp->imprimir_nodo();
+            cout << endl;
+    
+
+    
+            temp = temp->siguiente;
+            count++;
+        } while (temp != ptrCabeza);
+    }
+}
+*/
 
 int main()
 {
     ListaCircular<string> lista_circular;
     int opc1;
     string opc1_validar;
-
-    cin.ignore();
 
     do
     {
@@ -929,6 +965,7 @@ int main()
              << "1) Insertar al Principio\n"
              << "2) Insertar al Final\n"
              << "3) Buscar por Posicion\n"
+
              << "4) Modificar\n"
              << "5) Remover\n"
 
@@ -936,6 +973,7 @@ int main()
              << "7) Ordenar Descendente\n"
 
              << "8) Ordenar por Nombre\n"
+             
              << "9) Invertir\n"
 
              << "10) Vaciar Lista\n"

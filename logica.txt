@@ -1,1 +1,1 @@
-1,Black Ice,Cumbia,Sepa,Cumbia,C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/ACDC - Black Ice.wav
+1,Reminiscencias,Julio Jaramillo,Sepa no me se el nombre,Dolidas,C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/Julio Jaramillo - Reminiscencias.wav
