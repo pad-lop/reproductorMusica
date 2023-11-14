@@ -2,6 +2,10 @@
 #include <string>
 #include <fstream>
 #include <cstdint>
+#include <filesystem>
+#include <codecvt>
+
+#include <locale>
 
 using namespace std;
 
@@ -47,13 +51,13 @@ void validarParametroEntero(int *x, string x_prevalidar, string texto)
     *x = stod(x_prevalidar);
 }
 
-double getAudioFileDuration(const std::string &filename)
+double getAudioFileDuration(const string &filename)
 {
-    std::ifstream file(filename, std::ios::binary);
+    ifstream file(filename, ios::binary);
 
     if (!file.is_open())
     {
-        std::cerr << "Error opening file " << filename << std::endl;
+        cerr << "Error opening file " << filename << endl;
         return -1.0; // Indicates an error
     }
 
@@ -61,9 +65,9 @@ double getAudioFileDuration(const std::string &filename)
     char chunkID[4];
     file.read(chunkID, 4);
 
-    if (std::string(chunkID, 4) != "RIFF")
+    if (string(chunkID, 4) != "RIFF")
     {
-        std::cerr << "Not a valid RIFF file" << std::endl;
+        cerr << "Not a valid RIFF file" << endl;
         return -1.0; // Indicates an error
     }
 
@@ -75,9 +79,9 @@ double getAudioFileDuration(const std::string &filename)
     char format[4];
     file.read(format, 4);
 
-    if (std::string(format, 4) != "WAVE")
+    if (string(format, 4) != "WAVE")
     {
-        std::cerr << "Not a valid WAVE file" << std::endl;
+        cerr << "Not a valid WAVE file" << endl;
         return -1.0; // Indicates an error
     }
 
@@ -87,10 +91,10 @@ double getAudioFileDuration(const std::string &filename)
         char subchunkID[4];
         file.read(subchunkID, 4);
 
-        if (std::string(subchunkID, 4) == "fmt ")
+        if (string(subchunkID, 4) == "fmt ")
         {
             // Skip the next 4 bytes (subchunk size)
-            file.seekg(4, std::ios::cur);
+            file.seekg(4, ios::cur);
 
             // Read the audio format (should be 1 for PCM)
             uint16_t audioFormat;
@@ -98,7 +102,7 @@ double getAudioFileDuration(const std::string &filename)
 
             if (audioFormat != 1)
             {
-                std::cerr << "Unsupported audio format" << std::endl;
+                cerr << "Unsupported audio format" << endl;
                 return -1.0; // Indicates an error
             }
 
@@ -111,7 +115,7 @@ double getAudioFileDuration(const std::string &filename)
             file.read(reinterpret_cast<char *>(&sampleRate), sizeof(sampleRate));
 
             // Skip the next 6 bytes
-            file.seekg(6, std::ios::cur);
+            file.seekg(6, ios::cur);
 
             // Read the bits per sample
             uint16_t bitsPerSample;
@@ -123,24 +127,24 @@ double getAudioFileDuration(const std::string &filename)
                 char subchunkID[4];
                 file.read(subchunkID, 4);
 
-                if (std::string(subchunkID, 4) == "data")
+                if (string(subchunkID, 4) == "data")
                 {
                     // Skip the next 4 bytes (subchunk size)
-                    file.seekg(4, std::ios::cur);
+                    file.seekg(4, ios::cur);
 
                     // Calculate the duration based on file size
                     double duration = static_cast<double>(fileSize - 44) / (numChannels * bitsPerSample / 8.0) / sampleRate;
 
                     // Close the file and return the duration
                     file.close();
-                    return duration;
+                    return static_cast<int>(duration);
                 }
                 else
                 {
                     // Skip the subchunk size
                     uint32_t subchunkSize;
                     file.read(reinterpret_cast<char *>(&subchunkSize), sizeof(subchunkSize));
-                    file.seekg(subchunkSize, std::ios::cur);
+                    file.seekg(subchunkSize, ios::cur);
                 }
             }
         }
@@ -149,9 +153,39 @@ double getAudioFileDuration(const std::string &filename)
             // Skip the subchunk size
             uint32_t subchunkSize;
             file.read(reinterpret_cast<char *>(&subchunkSize), sizeof(subchunkSize));
-            file.seekg(subchunkSize, std::ios::cur);
+            file.seekg(subchunkSize, ios::cur);
         }
     }
+}
+
+string convertirRuta(const string &rutaOriginal)
+{
+    string rutaConvertida;
+
+    for (char caracter : rutaOriginal)
+    {
+        switch (caracter)
+        {
+        case '\\':
+            // Reemplazar barras invertidas por barras normales
+            rutaConvertida.push_back('/');
+            break;
+        case '"':
+            // Omitir comillas
+            break;
+        default:
+            // Mantener los demás caracteres sin cambios
+            rutaConvertida.push_back(caracter);
+        }
+    }
+
+    // Eliminar la barra invertida al final, si la hay
+    while (!rutaConvertida.empty() && rutaConvertida.back() == '/')
+    {
+        rutaConvertida.pop_back();
+    }
+
+    return rutaConvertida;
 }
 
 template <typename T>
@@ -164,6 +198,8 @@ public:
     T album;
     T genero;
     T directorio;
+
+    int duracion;
 
     Nodo *siguiente;
 
@@ -214,6 +250,7 @@ void Nodo<T>::imprimir_nodo()
     cout << "   Album: " << album << endl;
     cout << "   Genero: " << genero << endl;
     cout << "   Directorio: " << directorio << endl;
+    cout << "   Duracion: " << duracion << endl;
 }
 
 template <typename T>
@@ -370,6 +407,20 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
             ptrCabeza = nuevo_nodo;
             ultimo->siguiente = ptrCabeza;
         }
+
+        // Validar el directorio y calcular la duración
+        if (filesystem::exists(directorio_))
+        {
+            nuevo_nodo->duracion = getAudioFileDuration(directorio_);
+        }
+        else
+        {
+            // El directorio no es válido
+            cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
+                 << endl;
+            delete nuevo_nodo;
+            return;
+        }
     }
 }
 
@@ -406,6 +457,20 @@ void ListaCircular<T>::agregar_al_final(T id_, T nombre_, T artista_, T album_, 
             {
                 nuevo_nodo->siguiente = temp->siguiente;
                 temp->siguiente = nuevo_nodo;
+            }
+
+            // Validar el directorio y calcular la duración
+            if (filesystem::exists(directorio_))
+            {
+                nuevo_nodo->duracion = getAudioFileDuration(directorio_);
+            }
+            else
+            {
+                // El directorio no es válido
+                cout << "\033[1;31m ERR: Directorio no válido o archivo no encontrado \033[0m\n"
+                     << endl;
+                delete nuevo_nodo;
+                return;
             }
         }
     }
@@ -482,6 +547,8 @@ void ListaCircular<T>::modificar(T id_, T nuevo_id, T nuevo_nombre, T nuevo_arti
             temp->album = nuevo_album;
             temp->genero = nuevo_genero;
             temp->directorio = nuevo_directorio;
+            temp->duracion = getAudioFileDuration(nuevo_directorio);
+
             cout << "\033[1;32m Cancion modificado. \033[0m" << endl
                  << endl;
             modificado = true;
@@ -817,6 +884,8 @@ int main()
             cout << "--> Ingrese el Directorio: ";
             getline(cin, directorio);
 
+            directorio = convertirRuta(directorio);
+
             lista_circular.agregar_al_principio(id, nombre, artista, album, genero, directorio);
             break;
         case 2:
@@ -833,6 +902,7 @@ int main()
             getline(cin, genero);
             cout << "--> Ingrese el Directorio: ";
             getline(cin, directorio);
+            directorio = convertirRuta(directorio);
 
             lista_circular.agregar_al_final(id, nombre, artista, album, genero, directorio);
             break;
@@ -858,6 +928,7 @@ int main()
             getline(cin, nuevo_genero);
             cout << "--> Ingrese el nuevo Directorio: ";
             getline(cin, nuevo_directorio);
+            nuevo_directorio = convertirRuta(nuevo_directorio);
 
             lista_circular.modificar(id, nuevo_id, nuevo_nombre, nuevo_genero, nuevo_album, nuevo_genero, nuevo_directorio);
             break;
