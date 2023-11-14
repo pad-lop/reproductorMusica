@@ -4,20 +4,19 @@
 #include <cstdint>
 #include <filesystem>
 #include <codecvt>
-
 #include <locale>
-
 #include <SFML/Audio.hpp>
 #include <SFML/Window/Keyboard.hpp>
-
 #include <thread>
 #include <chrono>
 #include <mutex>
 
+#include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
+
 using namespace std;
 
-bool reproduciendo = false;
-bool enPausa = false;
+bool reproducir = false;
 std::mutex mtx;
 
 bool esEntero(const string &dato)
@@ -276,16 +275,15 @@ class ListaCircular
 private:
     Nodo<T> *ptrCabeza;
 
-    bool reproducirCancion();
-    void gestionarPausa(bool &isPaused);
-
 public:
     ListaCircular();
     ~ListaCircular();
 
     sf::Music musicPlayer;
+
     void reproducirMusica();
     void pausarMusica();
+    void reproducirCancion();
 
     void buscar_por_posicion(int posicion);
     void buscar_nombre(T);
@@ -863,14 +861,8 @@ void ListaCircular<T>::reproducirMusica()
         return;
     }
 
-    std::thread reproduccionThread(&ListaCircular<T>::reproducirCancion, this);
-    std::lock_guard<std::mutex> lock(mtx); // Bloquea el mutex para acceder a las variables compartidas
-
-    musicPlayer.play();
-    enPausa = false;
+    reproducir = true;
     cout << "Reproduccion reanudada." << endl;
-
-    reproduccionThread.join(); // Espera a que el hilo de reproducción termine
 }
 
 template <typename T>
@@ -883,50 +875,43 @@ void ListaCircular<T>::pausarMusica()
         return;
     }
 
-    musicPlayer.pause();
-    enPausa = true;
+    reproducir = false;
     cout << "Reproduccion pausada." << endl;
 }
 
 template <typename T>
-bool ListaCircular<T>::reproducirCancion()
+void ListaCircular<T>::reproducirCancion()
 {
-    std::lock_guard<std::mutex> lock(mtx); // Bloquea el mutex para acceder a las variables compartidas
-
-    if (reproduciendo)
-    {
-        cerr << "Ya se está reproduciendo una canción." << endl;
-        return false;
-    }
-
-    reproduciendo = true;
+    std::lock_guard<std::mutex> lock(mtx);
 
     if (filesystem::path(ptrCabeza->directorio).extension() != ".wav")
     {
         cerr << "Formato de archivo no compatible: " << ptrCabeza->directorio << endl;
-        reproduciendo = false;
-        return false;
+        reproducir = false;
+        return;
     }
 
     if (!musicPlayer.openFromFile(ptrCabeza->directorio))
     {
         cerr << "Error al abrir el archivo de audio: " << ptrCabeza->directorio << endl;
-        reproduciendo = false;
-        return false;
+        reproducir = false;
+        return;
     }
 
-    cout << "Reproduciendo la siguiente canción..." << endl;
-    musicPlayer.play();
-    cout << "Reproduciendo: " << ptrCabeza->nombre << " - Artista: " << ptrCabeza->artista << endl;
-
-    // Esperar hasta que la reproducción termine o se detenga manualmente
-    while (musicPlayer.getStatus() == sf::Music::Playing && reproduciendo)
+    if (reproducir)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        cout << "Reproduciendo la siguiente canción..." << endl;
+        musicPlayer.play();
+        cout << "Reproduciendo: " << ptrCabeza->nombre << " - Artista: " << ptrCabeza->artista << endl;
+    }
+    else
+    {
+        musicPlayer.pause();
+        cout << "Pausado" << endl;
     }
 
-    reproduciendo = false;
-    return true;
+    // Cambiar la lista circular a la siguiente canción para la próxima reproducción
+    ptrCabeza = ptrCabeza->siguiente;
 }
 
 class Menu
@@ -1099,7 +1084,7 @@ void Menu::ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular)
     case 16:
         // Implementar la reproducción de la canción anterior...
         break;
-  
+
     case 0:
         exit(0);
     default:
@@ -1107,20 +1092,83 @@ void Menu::ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular)
     }
 }
 
+void hiloReproducirMusica(ListaCircular<string> &lista_circular)
+{
+    cout << "Reproduciendo Hilo: Verdadero" << endl;
+    while (true)
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        
+        lista_circular.reproducirCancion();
+        lock.unlock();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+}
+
+void hiloEjecutarMenu(ListaCircular<string> &lista_circular)
+{
+    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Window");
+
+    while (window.isOpen())
+    {
+        sf::Event event;
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+            {
+                window.close();
+            }
+        }
+
+        int opcion;
+        do
+        {
+            system("cls");
+            cout << endl
+                 << "Reproduciendo: " << reproducir << endl
+                 << endl;
+            lista_circular.imprimir_lista();
+            opcion = Menu::mostrarMenuPrincipal();
+            if (opcion == 13) // Reproducir Musica
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                reproducir = true;
+            }
+            else if (opcion == 14) // Pausar Musica
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                reproducir = false;
+            }
+            else if (opcion == 15) // Siguiente Cancion
+            {
+                // Implement logic to play the next song
+                std::lock_guard<std::mutex> lock(mtx);
+                lista_circular.reproducirCancion();
+            }
+            else if (opcion == 16) // Cancion Anterior
+            {
+                // Implement logic to play the previous song
+            }
+            Menu::ejecutarOpcion(opcion, lista_circular);
+        } while (opcion != 0);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
 
 int main()
 {
+
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 8;
+    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Window", sf::Style::Default, settings);
+
     ListaCircular<string> lista_circular;
-    int opcion;
+    std::thread hilo_menu(hiloEjecutarMenu, std::ref(lista_circular));
+    std::thread hilo_musica(hiloReproducirMusica, std::ref(lista_circular));
 
-    do
-    {
-        system("cls");
-        lista_circular.imprimir_lista();
-        opcion = Menu::mostrarMenuPrincipal();
-        Menu::ejecutarOpcion(opcion, lista_circular);
-
-    } while (opcion != 18);
+    hilo_musica.join();
+    hilo_menu.join();
 
     return 0;
 }
