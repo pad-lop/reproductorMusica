@@ -287,7 +287,6 @@ public:
     void reproducirMusica();
     void pausarMusica();
 
-
     void buscar_por_posicion(int posicion);
     void buscar_nombre(T);
     void modificar(T, T, T, T, T, T, T);
@@ -865,16 +864,14 @@ void ListaCircular<T>::reproducirMusica()
     }
 
     std::thread reproduccionThread(&ListaCircular<T>::reproducirCancion, this);
-        std::lock_guard<std::mutex> lock(mtx); // Bloquea el mutex para acceder a las variables compartidas
+    std::lock_guard<std::mutex> lock(mtx); // Bloquea el mutex para acceder a las variables compartidas
 
-musicPlayer.play();
-enPausa = false;
-cout << "Reproduccion reanudada." << endl;
+    musicPlayer.play();
+    enPausa = false;
+    cout << "Reproduccion reanudada." << endl;
 
     reproduccionThread.join(); // Espera a que el hilo de reproducción termine
 }
-
-
 
 template <typename T>
 void ListaCircular<T>::pausarMusica()
@@ -886,12 +883,10 @@ void ListaCircular<T>::pausarMusica()
         return;
     }
 
-
- musicPlayer.pause();
-                enPausa = true;
-                cout << "Reproduccion pausada." << endl;
+    musicPlayer.pause();
+    enPausa = true;
+    cout << "Reproduccion pausada." << endl;
 }
-
 
 template <typename T>
 bool ListaCircular<T>::reproducirCancion()
@@ -934,178 +929,198 @@ bool ListaCircular<T>::reproducirCancion()
     return true;
 }
 
+class Menu
+{
+public:
+    static int mostrarMenuPrincipal();
+    static void ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular);
+};
+
+int Menu::mostrarMenuPrincipal()
+{
+    int opcion;
+    string opcion_validar;
+
+    do
+    {
+        cout << "----- MENU -----" << endl
+             << endl
+             << "1) Insertar al Principio\n"
+             << "2) Insertar al Final\n"
+             << "3) Buscar por Posicion\n"
+             << "4) Modificar\n"
+             << "5) Remover\n"
+             << "6) Ordenar Ascendente\n"
+             << "7) Ordenar Descendente\n"
+             << "8) Ordenar por Nombre\n"
+             << "9) Invertir\n"
+             << "10) Vaciar Lista\n"
+             << "11) Guardar en .txt - Se sobreescribe el txt\n"
+             << "12) Cargar de .txt - Se sobreescribe la lista\n"
+             << "13) Reproducir Musica\n"
+             << "14) Pausar Musica\n"
+             << "15) Siguiente Cancion\n"
+             << "16) Cancion Anterior\n"
+             << "17) Imprimir Lista\n"
+             << endl
+             << "0) Salir\n"
+             << endl;
+
+        cout << "Ingrese la opcion deseada: ";
+        getline(cin, opcion_validar);
+        opcion = atoi(opcion_validar.c_str());
+    } while (opcion < 1 || opcion > 18);
+
+    return opcion;
+}
+
+void Menu::ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular)
+{
+    string id, nombre, artista, album, genero, directorio;
+
+    int id_int;
+    string id_validar, posicion_validar;
+
+    string nuevo_id, nuevo_nombre, nuevo_artista, nuevo_album, nuevo_genero, nuevo_directorio;
+
+    string nombre_archivo = "logica.txt";
+
+    switch (opcion)
+    {
+    case 1:
+        validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
+        id = to_string(id_int);
+
+        cout << "--> Ingrese el  Nombre: ";
+        getline(cin, nombre);
+        cout << "--> Ingrese el  Artista: ";
+        getline(cin, artista);
+        cout << "--> Ingrese el  Album: ";
+        getline(cin, album);
+        cout << "--> Ingrese el  Genero: ";
+        getline(cin, genero);
+        cout << "--> Ingrese el  Directorio: ";
+        getline(cin, directorio);
+
+        directorio = convertirRuta(directorio);
+
+        lista_circular.agregar_al_principio(id, nombre, artista, album, genero, directorio);
+        break;
+    case 2:
+        validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
+        id = to_string(id_int);
+
+        cout << "--> Ingrese el  Nombre: ";
+        getline(cin, nombre);
+        cout << "--> Ingrese el  Artista: ";
+        getline(cin, artista);
+        cout << "--> Ingrese el  Album: ";
+        getline(cin, album);
+        cout << "--> Ingrese el  Genero: ";
+        getline(cin, genero);
+        cout << "--> Ingrese el  Directorio: ";
+        getline(cin, directorio);
+
+        directorio = convertirRuta(directorio);
+
+        lista_circular.agregar_al_final(id, nombre, artista, album, genero, directorio);
+        break;
+    case 3:
+        int posicion;
+        validarParametroEntero(&posicion, posicion_validar, "Ingrese la posicion a buscar");
+        lista_circular.buscar_por_posicion(posicion);
+        break;
+    case 4:
+        validarParametroEntero(&id_int, id_validar, "Ingrese el ID a Modificar");
+        id = to_string(id_int);
+
+        validarParametroEntero(&id_int, id_validar, "Ingrese el nuevo ID");
+        nuevo_id = to_string(id_int);
+
+        cout << "--> Ingrese el nuevo Nombre: ";
+        getline(cin, nuevo_nombre);
+        cout << "--> Ingrese el nuevo Artista: ";
+        getline(cin, nuevo_artista);
+        cout << "--> Ingrese el nuevo Album: ";
+        getline(cin, nuevo_album);
+        cout << "--> Ingrese el nuevo Genero: ";
+        getline(cin, nuevo_genero);
+        cout << "--> Ingrese el nuevo Directorio: ";
+        getline(cin, nuevo_directorio);
+        nuevo_directorio = convertirRuta(nuevo_directorio);
+
+        lista_circular.modificar(id, nuevo_id, nuevo_nombre, nuevo_genero, nuevo_album, nuevo_genero, nuevo_directorio);
+        break;
+    case 5:
+        cout << "--> Ingrese el ID a eliminar: ";
+        cin >> id;
+        cin.ignore();
+
+        lista_circular.eliminar(id);
+        break;
+    case 6:
+        lista_circular.ordenar_ascendentemente();
+        break;
+    case 7:
+        lista_circular.ordenar_descendentemente();
+        break;
+    case 8:
+        lista_circular.ordenar_por_nombre();
+        break;
+    case 9:
+        lista_circular.invertir();
+        break;
+    case 10:
+        lista_circular.vaciar();
+        break;
+
+    case 11:
+        lista_circular.guardar_en_archivo(nombre_archivo);
+        cout << "\033[1;32m Lista guardada en el archivo exitosamente \033[0m\n"
+             << endl;
+        system("pause");
+        break;
+    case 12:
+        lista_circular.cargar_desde_archivo(nombre_archivo);
+        cout << "\033[1;32m Lista cargada desde el archivo exitosamente \033[0m\n"
+             << endl;
+        system("pause");
+
+        break;
+    case 13:
+        lista_circular.reproducirMusica();
+        break;
+    case 14:
+        lista_circular.pausarMusica();
+        break;
+    case 15:
+        // Implementar la reproducción de la siguiente canción...
+        break;
+    case 16:
+        // Implementar la reproducción de la canción anterior...
+        break;
+  
+    case 0:
+        exit(0);
+    default:
+        cout << "Opcion no valida." << endl;
+    }
+}
+
+
 int main()
 {
     ListaCircular<string> lista_circular;
-    int opc1;
-    string opc1_validar;
+    int opcion;
 
     do
     {
         system("cls");
         lista_circular.imprimir_lista();
+        opcion = Menu::mostrarMenuPrincipal();
+        Menu::ejecutarOpcion(opcion, lista_circular);
 
-        cout << endl
-             << "----- MENU -----" << endl
-             << endl
-             << "1) Insertar al Principio\n"
-             << "2) Insertar al Final\n"
-             << "3) Buscar por Posicion\n"
-
-             << "4) Modificar\n"
-             << "5) Remover\n"
-
-             << "6) Ordenar Ascendente\n"
-             << "7) Ordenar Descendente\n"
-
-             << "8) Ordenar por Nombre\n"
-
-             << "9) Invertir\n"
-
-             << "10) Vaciar Lista\n"
-
-             << "11) Guardar en .txt - Se sobreescribe el txt\n"
-             << "12) Cargar de .txt - Se sobreescribe la lista\n"
-
-             << "13) Reproducir Musica\n"
-             << "14) Pausar Musica\n"
-             << "15) Siguiente Cancion\n"
-             << "16) Anterior Cancion\n"
-
-             << "0) Salir\n"
-
-             << endl;
-        validarParametroEntero(&opc1, opc1_validar, "Selecciona una opcion");
-
-        cout << endl;
-
-        string nuevo_id, nuevo_nombre, nuevo_artista, nuevo_album, nuevo_genero, nuevo_directorio;
-
-        string id, nombre, artista, album, genero, directorio;
-
-        string id_validar;
-        int id_int;
-
-        string nombre_archivo = "logica.txt";
-
-        switch (opc1)
-        {
-        case 1:
-            validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
-            id = to_string(id_int);
-
-            cout << "--> Ingrese el  Nombre: ";
-            getline(cin, nombre);
-            cout << "--> Ingrese el  Artista: ";
-            getline(cin, artista);
-            cout << "--> Ingrese el  Album: ";
-            getline(cin, album);
-            cout << "--> Ingrese el  Genero: ";
-            getline(cin, genero);
-            cout << "--> Ingrese el  Directorio: ";
-            getline(cin, directorio);
-
-            directorio = convertirRuta(directorio);
-
-            lista_circular.agregar_al_principio(id, nombre, artista, album, genero, directorio);
-            break;
-        case 2:
-            validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
-            id = to_string(id_int);
-
-            cout << "--> Ingrese el  Nombre: ";
-            getline(cin, nombre);
-            cout << "--> Ingrese el  Artista: ";
-            getline(cin, artista);
-            cout << "--> Ingrese el  Album: ";
-            getline(cin, album);
-            cout << "--> Ingrese el  Genero: ";
-            getline(cin, genero);
-            cout << "--> Ingrese el  Directorio: ";
-            getline(cin, directorio);
-
-            directorio = convertirRuta(directorio);
-
-            lista_circular.agregar_al_final(id, nombre, artista, album, genero, directorio);
-            break;
-        case 3:
-            int posicion;
-            validarParametroEntero(&posicion, opc1_validar, "Ingrese la posicion a buscar");
-            lista_circular.buscar_por_posicion(posicion);
-            break;
-        case 4:
-            validarParametroEntero(&id_int, id_validar, "Ingrese el ID a Modificar");
-            id = to_string(id_int);
-
-            validarParametroEntero(&id_int, id_validar, "Ingrese el nuevo ID");
-            nuevo_id = to_string(id_int);
-
-            cout << "--> Ingrese el nuevo Nombre: ";
-            getline(cin, nuevo_nombre);
-            cout << "--> Ingrese el nuevo Artista: ";
-            getline(cin, nuevo_artista);
-            cout << "--> Ingrese el nuevo Album: ";
-            getline(cin, nuevo_album);
-            cout << "--> Ingrese el nuevo Genero: ";
-            getline(cin, nuevo_genero);
-            cout << "--> Ingrese el nuevo Directorio: ";
-            getline(cin, nuevo_directorio);
-            nuevo_directorio = convertirRuta(nuevo_directorio);
-
-            lista_circular.modificar(id, nuevo_id, nuevo_nombre, nuevo_genero, nuevo_album, nuevo_genero, nuevo_directorio);
-            break;
-        case 5:
-            cout << "--> Ingrese el ID a eliminar: ";
-            cin >> id;
-            cin.ignore();
-
-            lista_circular.eliminar(id);
-            break;
-        case 6:
-            lista_circular.ordenar_ascendentemente();
-            break;
-        case 7:
-            lista_circular.ordenar_descendentemente();
-            break;
-        case 8:
-            lista_circular.ordenar_por_nombre();
-            break;
-        case 9:
-            lista_circular.invertir();
-            break;
-        case 10:
-            lista_circular.vaciar();
-            break;
-
-        case 11:
-            lista_circular.guardar_en_archivo(nombre_archivo);
-            cout << "\033[1;32m Lista guardada en el archivo exitosamente \033[0m\n"
-                 << endl;
-            system("pause");
-            break;
-        case 12:
-            lista_circular.cargar_desde_archivo(nombre_archivo);
-            cout << "\033[1;32m Lista cargada desde el archivo exitosamente \033[0m\n"
-                 << endl;
-            system("pause");
-
-            break;
-        case 13:
-            lista_circular.reproducirMusica();
-            break;
-        case 14:
-            lista_circular.pausarMusica();
-            break;
-        case 15:
-            // Siguiente canción
-            break;
-        case 16:
-            // Anterior canción
-            break;
-        default:
-            break;
-        }
-    } while (opc1 != 0);
+    } while (opcion != 18);
 
     return 0;
 }
