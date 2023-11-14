@@ -3,82 +3,95 @@
 #include <thread>
 #include <mutex>
 
-std::mutex mutex;
+class MusicPlayer {
+public:
+    MusicPlayer(const std::string& filePath) {
+        if (!music.openFromFile(filePath)) {
+            std::cerr << "Error al cargar el archivo de música.\n";
+            std::exit(1);
+        }
+        music.setLoop(true);
+        isPaused = false;
+    }
 
-bool isPaused = false;
+    void play() {
+        music.play();
+    }
 
-// Función que controla la reproducción de la música
-void musicControl(sf::Music &music)
-{
-    while (true)
-    {
-        int command;
-        std::cout << "Ingrese el comando (1) pausar / (2) reanudar / (3) detener";
-        std::cin >> command;
-
-        std::unique_lock<std::mutex> lock(mutex);
-
-        switch (command)
-        {
-
-        case 1:
-            if (!isPaused)
-            {
-                music.pause();
-                isPaused = true;
-                std::cout << "Música pausada.\n";
-            }
-            else
-            {
-                std::cout << "La música ya está pausada.\n";
-            }
-            break;
-
-        case 2:
-            if (isPaused)
-            {
-                music.play();
-                isPaused = false;
-                std::cout << "Música reanudada.\n";
-            }
-            else
-            {
-                std::cout << "La música no está pausada.\n";
-            }
-            break;
-
-        case 3:
-            music.stop();
-            break;
-
-        default:
-            std::cout << "Comando no reconocido.\n";
+    void pause() {
+        if (!isPaused) {
+            music.pause();
+            isPaused = true;
+            std::cout << "Música pausada.\n";
+        } else {
+            std::cout << "La música ya está pausada.\n";
         }
     }
-}
 
-int main()
-{
-    // Cargar el archivo de música en formato WAV
-    sf::Music music;
-    if (!music.openFromFile("C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/Franz Ferdinand - This fffire - New Version.wav"))
-    {
-        std::cerr << "Error al cargar el archivo de música.\n";
-        return 1;
+    void resume() {
+        if (isPaused) {
+            music.play();
+            isPaused = false;
+            std::cout << "Música reanudada.\n";
+        } else {
+            std::cout << "La música no está pausada.\n";
+        }
     }
 
-    // Crear un hilo para la reproducción de música
-    std::thread musicThread([&]()
-                            {
-                                music.setLoop(true); // Repetir la música
-                                music.play();        // Reproducir la música
-                            });
+    void stop() {
+        music.stop();
+    }
 
-    // Crear un hilo para el control de la música
-    std::thread controlThread([&]()
-                              { musicControl(music); });
+private:
+    sf::Music music;
+    bool isPaused;
+};
 
-    // Esperar a que ambos hilos terminen
+class MusicController {
+public:
+    MusicController(MusicPlayer& player) : musicPlayer(player) {}
+
+    void startControl() {
+        while (true) {
+            int command;
+            std::cout << "Ingrese el comando (1) pausar / (2) reanudar / (3) detener: ";
+            std::cin >> command;
+
+            std::unique_lock<std::mutex> lock(mutex);
+
+            switch (command) {
+            case 1:
+                musicPlayer.pause();
+                break;
+            case 2:
+                musicPlayer.resume();
+                break;
+            case 3:
+                musicPlayer.stop();
+                return;
+            default:
+                std::cout << "Comando no reconocido.\n";
+            }
+        }
+    }
+
+private:
+    MusicPlayer& musicPlayer;
+    std::mutex mutex;
+};
+
+int main() {
+    MusicPlayer musicPlayer("C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/Franz Ferdinand - This fffire - New Version.wav");
+
+    std::thread musicThread([&]() {
+        musicPlayer.play();
+    });
+
+    MusicController musicController(musicPlayer);
+    std::thread controlThread([&]() {
+        musicController.startControl();
+    });
+
     musicThread.join();
     controlThread.join();
 

@@ -279,7 +279,6 @@ public:
     ListaCircular();
     ~ListaCircular();
 
-    sf::Music musicPlayer;
 
     void reproducirMusica();
     void pausarMusica();
@@ -393,6 +392,7 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
 
     archivo.close();
 }
+
 /*
 template <typename T>
 bool ListaCircular<T>::validarDirectorio(const T &directorio_)
@@ -944,9 +944,6 @@ int Menu::mostrarMenuPrincipal()
              << "12) Cargar de .txt - Se sobreescribe la lista\n"
              << "13) Reproducir Musica\n"
              << "14) Pausar Musica\n"
-             << "15) Siguiente Cancion\n"
-             << "16) Cancion Anterior\n"
-             << "17) Imprimir Lista\n"
              << endl
              << "0) Salir\n"
              << endl;
@@ -1078,12 +1075,6 @@ void Menu::ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular)
     case 14:
         lista_circular.pausarMusica();
         break;
-    case 15:
-        // Implementar la reproducción de la siguiente canción...
-        break;
-    case 16:
-        // Implementar la reproducción de la canción anterior...
-        break;
 
     case 0:
         exit(0);
@@ -1098,7 +1089,7 @@ void hiloReproducirMusica(ListaCircular<string> &lista_circular)
     while (true)
     {
         std::unique_lock<std::mutex> lock(mtx);
-        
+
         lista_circular.reproducirCancion();
         lock.unlock();
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1107,68 +1098,35 @@ void hiloReproducirMusica(ListaCircular<string> &lista_circular)
 
 void hiloEjecutarMenu(ListaCircular<string> &lista_circular)
 {
-    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Window");
 
-    while (window.isOpen())
+    int opcion;
+    do
     {
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            if (event.type == sf::Event::Closed)
-            {
-                window.close();
-            }
-        }
+        system("cls");
+        cout << endl
+             << "Reproduciendo: " << reproducir << endl
+             << endl;
+        lista_circular.imprimir_lista();
+        opcion = Menu::mostrarMenuPrincipal();
 
-        int opcion;
-        do
-        {
-            system("cls");
-            cout << endl
-                 << "Reproduciendo: " << reproducir << endl
-                 << endl;
-            lista_circular.imprimir_lista();
-            opcion = Menu::mostrarMenuPrincipal();
-            if (opcion == 13) // Reproducir Musica
-            {
-                std::lock_guard<std::mutex> lock(mtx);
-                reproducir = true;
-            }
-            else if (opcion == 14) // Pausar Musica
-            {
-                std::lock_guard<std::mutex> lock(mtx);
-                reproducir = false;
-            }
-            else if (opcion == 15) // Siguiente Cancion
-            {
-                // Implement logic to play the next song
-                std::lock_guard<std::mutex> lock(mtx);
-                lista_circular.reproducirCancion();
-            }
-            else if (opcion == 16) // Cancion Anterior
-            {
-                // Implement logic to play the previous song
-            }
-            Menu::ejecutarOpcion(opcion, lista_circular);
-        } while (opcion != 0);
+        Menu::ejecutarOpcion(opcion, lista_circular);
+    } while (opcion != 0);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 int main()
 {
 
-    sf::ContextSettings settings;
-    settings.antialiasingLevel = 8;
-    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Window", sf::Style::Default, settings);
-
     ListaCircular<string> lista_circular;
-    std::thread hilo_menu(hiloEjecutarMenu, std::ref(lista_circular));
-    std::thread hilo_musica(hiloReproducirMusica, std::ref(lista_circular));
+    sf::Music musicPlayer;
 
-    hilo_musica.join();
-    hilo_menu.join();
+    std::thread hiloReproduccion(hiloReproducirMusica, std::ref(lista_circular));
+    std::thread hiloMenu(hiloEjecutarMenu, std::ref(lista_circular));
+
+    // Wait for threads to finish
+    hiloReproduccion.join();
+    hiloMenu.join();
 
     return 0;
 }
