@@ -5,14 +5,15 @@
 #include <filesystem>
 #include <codecvt>
 #include <locale>
-#include <SFML/Audio.hpp>
-#include <SFML/Window/Keyboard.hpp>
 #include <thread>
 #include <chrono>
 #include <mutex>
 
+#include <SFML/Audio.hpp>
+#include <SFML/Window/Keyboard.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <SFML/System/Sleep.hpp>
 
 using namespace std;
 
@@ -80,6 +81,7 @@ double getAudioFileDuration(const std::string &filename)
     {
         std::cerr << "Not a valid RIFF file" << std::endl;
         system("pause");
+
         return -1.0; // Indicates an error
     }
 
@@ -273,13 +275,13 @@ template <typename T>
 class ListaCircular
 {
 private:
-    Nodo<T> *ptrCabeza;
-
 public:
     ListaCircular();
     ~ListaCircular();
 
-    bool reproduciendo = false; 
+    Nodo<T> *ptrCabeza;
+
+    bool reproduciendo = false;
     sf::Music musicPlayer;
 
     void reproducirMusica();
@@ -373,7 +375,6 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
         getline(archivo, album, ',');
         getline(archivo, genero, ',');
         getline(archivo, directorio);
-        
 
         if (!id.empty() && !nombre.empty())
         {
@@ -543,57 +544,39 @@ void ListaCircular<T>::vaciar()
         delete temp;
     }
 
-    cout << endl << "\033[1;32m Lista Vacia \033[0m\n"
+    cout << endl
+         << "\033[1;32m Lista Vacia \033[0m\n"
          << endl;
 }
 
 template <typename T>
 void ListaCircular<T>::reproducirMusica()
 {
-    std::lock_guard<std::mutex> lock(mtx);
-    reproduciendo = true;
-    cout << "Reproducción reanudada." << endl;
+    if (ptrCabeza)
+    {
+        reproduciendo = true;
+        musicPlayer.play();
+
+    }
+    else
+    {
+        cout << "\033[1;31m Lista vacia \033[0m\n"
+             << endl;
+    }
 }
 
 template <typename T>
 void ListaCircular<T>::pausarMusica()
 {
-    std::lock_guard<std::mutex> lock(mtx);
-    musicPlayer.pause();
-    cout << "Reproducción pausada." << endl;
-}
-template <typename T>
-void ListaCircular<T>::reproducirCancion()
-{
-    std::lock_guard<std::mutex> lock(mtx);
-
-    if (filesystem::path(ptrCabeza->directorio).extension() != ".wav")
+    if (ptrCabeza)
     {
-        cerr << "Formato de archivo no compatible: " << ptrCabeza->directorio << endl;
-        return;
+        musicPlayer.pause();
     }
-
-    sf::Music musicPlayer;
-
-    if (!musicPlayer.openFromFile(ptrCabeza->directorio))
+    else
     {
-        cerr << "Error al abrir el archivo de audio: " << ptrCabeza->directorio << endl;
-        return;
+        cout << "\033[1;31m Lista vacia \033[0m\n"
+             << endl;
     }
-
-    reproduciendo = true; // Establece reproduciendo en true
-    cout << "Reproduciendo la siguiente canción..." << endl;
-    musicPlayer.play();
-    cout << "Reproduciendo: " << ptrCabeza->nombre << " - Artista: " << ptrCabeza->artista << endl;
-
-    // Cambiar la lista circular a la siguiente canción para la próxima reproducción
-    ptrCabeza = ptrCabeza->siguiente;
-    // Espera a que termine la reproducción
-    while (musicPlayer.getStatus() == sf::SoundSource::Playing)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    reproduciendo = false; // Establece reproduciendo en false después de la reproducción
 }
 
 class Menu
@@ -719,38 +702,49 @@ void Menu::ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular)
 
 void hiloReproducirMusica(ListaCircular<string> &lista_circular)
 {
-    cout << "Reproduciendo Hilo: Verdadero" << endl;
     while (true)
     {
-        std::unique_lock<std::mutex> lock(mtx);
-        if (lista_circular.reproduciendo)
+        if (lista_circular.ptrCabeza && lista_circular.reproduciendo)
         {
-            lista_circular.reproducirCancion();
-            lock.unlock();
+            std::lock_guard<std::mutex> lock(mtx);
+
+            if (filesystem::path(lista_circular.ptrCabeza->directorio).extension() != ".wav")
+            {
+                cerr << "Formato de archivo no compatible: " << lista_circular.ptrCabeza->directorio << endl;
+                return;
+            }
+
+            if (!lista_circular.musicPlayer.openFromFile(lista_circular.ptrCabeza->directorio))
+            {
+                cerr << "Error al abrir el archivo de audio: " << lista_circular.ptrCabeza->directorio << endl;
+                return;
+            }
+
+            lista_circular.musicPlayer.play();
+
+            // Obtener la duración de la canción actual
+            sf::Time duration = lista_circular.musicPlayer.getDuration();
+
+            // Esperar la duración de la canción actual
+            sf::sleep(duration);
+
+            // Verificar si aún se desea reproducir la siguiente canción
+            if (!lista_circular.reproduciendo)
+            {
+                lista_circular.musicPlayer.pause();
+                continue; // Salir del bucle y esperar la siguiente iteración
+            }
+
+            lista_circular.ptrCabeza = lista_circular.ptrCabeza->siguiente;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        else if (!lista_circular.reproduciendo)
+        {
+            lista_circular.musicPlayer.pause();
+        }
     }
 }
 
 void hiloEjecutarMenu(ListaCircular<string> &lista_circular)
-{
-    int opcion;
-    do
-    {
-        system("cls");
-        cout << endl
-             << "Reproduciendo: " << lista_circular.reproduciendo << endl
-             << endl;
-        lista_circular.imprimir_lista();
-        opcion = Menu::mostrarMenuPrincipal();
-
-        Menu::ejecutarOpcion(opcion, lista_circular);
-    } while (opcion != 0);
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-}
-
-void hiloEjecucion(ListaCircular<string> &lista_circular)
 {
     int opcion;
     do
@@ -771,14 +765,11 @@ int main()
 {
     ListaCircular<string> lista_circular;
 
-    std::thread hiloMenu(hiloEjecucion, std::ref(lista_circular));
-
+    std::thread hiloMenu(hiloEjecutarMenu, std::ref(lista_circular));
     std::thread hiloReproduccion(hiloReproducirMusica, std::ref(lista_circular));
 
-    hiloMenu.join(); // Espera a que termine el hiloMenu
+    hiloMenu.join();         // Espera a que termine el hiloMenu
     hiloReproduccion.join(); // Espera a que termine el hiloMenu
-
-
 
     return 0;
 }

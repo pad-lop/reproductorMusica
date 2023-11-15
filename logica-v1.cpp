@@ -889,7 +889,6 @@ void ListaCircular<T>::reproducirMusica()
                         }
                     }
 
-                    musicPlayer.stop();
                 }
                 else
                 {

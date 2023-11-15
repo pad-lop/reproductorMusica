@@ -79,6 +79,7 @@ int main() {
         MusicPlayer musicPlayer("C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/Franz Ferdinand - This fffire - New Version.wav");
 
         std::thread musicThread([&]() {
+            
             musicPlayer.play();
         });
 
