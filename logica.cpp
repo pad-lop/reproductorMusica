@@ -275,6 +275,8 @@ template <typename T>
 class ListaCircular
 {
 private:
+    int contadorIDs;
+
 public:
     ListaCircular();
     ~ListaCircular();
@@ -286,6 +288,10 @@ public:
 
     void reproducirMusica();
 
+ void incrementarContadorID();
+    Nodo<T> *encontrarUltimoNodo();
+    void reiniciarContadorIDs();
+
     void pausarMusica();
     void reproducirCancion();
 
@@ -293,15 +299,15 @@ public:
 
     void imprimir_lista();
 
-    void agregar_al_final(T, T, T, T, T, T);
-    void agregar_al_principio(T, T, T, T, T, T);
+    void agregar_al_final(T, T, T, T, T);
+    void agregar_al_principio(T, T, T, T, T);
 
     void guardar_en_archivo(string);
     void cargar_desde_archivo(string);
 };
 
 template <typename T>
-ListaCircular<T>::ListaCircular()
+ListaCircular<T>::ListaCircular() : contadorIDs(0)
 {
     ptrCabeza = nullptr;
 }
@@ -331,6 +337,12 @@ ListaCircular<T>::~ListaCircular()
 }
 
 template <typename T>
+void ListaCircular<T>::reiniciarContadorIDs()
+{
+    contadorIDs = 0;
+}
+
+template <typename T>
 void ListaCircular<T>::guardar_en_archivo(string nombre_archivo)
 {
     fstream archivo;
@@ -342,7 +354,7 @@ void ListaCircular<T>::guardar_en_archivo(string nombre_archivo)
     {
         do
         {
-            archivo << temp->id << "," << temp->nombre << "," << temp->artista << "," << temp->album << "," << temp->genero << "," << temp->directorio << endl;
+            archivo << temp->nombre << "," << temp->artista << "," << temp->album << "," << temp->genero << "," << temp->directorio << endl;
             temp = temp->siguiente;
         } while (temp != ptrCabeza);
     }
@@ -368,18 +380,15 @@ void ListaCircular<T>::cargar_desde_archivo(string nombre_archivo)
 
     while (!archivo.eof())
     {
-        T id, nombre, artista, album, genero, directorio;
-        getline(archivo, id, ',');
+        T nombre, artista, album, genero, directorio;
+
         getline(archivo, nombre, ',');
         getline(archivo, artista, ',');
         getline(archivo, album, ',');
         getline(archivo, genero, ',');
         getline(archivo, directorio);
 
-        if (!id.empty() && !nombre.empty())
-        {
-            agregar_al_final(id, nombre, artista, album, genero, directorio);
-        }
+        agregar_al_final(nombre, artista, album, genero, directorio);
     }
 
     archivo.close();
@@ -408,9 +417,10 @@ bool ListaCircular<T>::validarDirectorio(const T &directorio_)
 */
 
 template <typename T>
-void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T album_, T genero_, T directorio_)
+void ListaCircular<T>::agregar_al_principio(T nombre_, T artista_, T album_, T genero_, T directorio_)
 {
-    Nodo<T> *nuevoNodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
+    incrementarContadorID();
+    Nodo<T> *nuevoNodo = new Nodo<T>(to_string(contadorIDs), nombre_, artista_, album_, genero_, directorio_);
     nuevoNodo->duracion = getAudioFileDuration(directorio_);
 
     if (!ptrCabeza)
@@ -420,77 +430,60 @@ void ListaCircular<T>::agregar_al_principio(T id_, T nombre_, T artista_, T albu
     }
     else
     {
-        Nodo<T> *temp = ptrCabeza;
-        bool existeID = false;
-
-        do
-        {
-            if (temp->id == id_)
-            {
-                existeID = true;
-                cout << "\033[1;31m ERR: ID previamente registrado \033[0m\n"
-                     << endl;
-
-                delete nuevoNodo;
-                system("pause");
-                break;
-            }
-            temp = temp->siguiente;
-        } while (temp != ptrCabeza);
-
-        if (!existeID)
-        {
-            Nodo<T> *ultimo = ptrCabeza;
-            while (ultimo->siguiente != ptrCabeza)
-            {
-                ultimo = ultimo->siguiente;
-            }
-
-            nuevoNodo->siguiente = ptrCabeza;
-            ptrCabeza = nuevoNodo;
-            ultimo->siguiente = ptrCabeza;
-        }
+        Nodo<T> *ultimo = encontrarUltimoNodo();
+        nuevoNodo->siguiente = ptrCabeza;
+        ptrCabeza = nuevoNodo;
+        ultimo->siguiente = ptrCabeza;
     }
 }
 
 template <typename T>
-void ListaCircular<T>::agregar_al_final(T id_, T nombre_, T artista_, T album_, T genero_, T directorio_)
+void ListaCircular<T>::agregar_al_final(T nombre_, T artista_, T album_, T genero_, T directorio_)
 {
-    Nodo<T> *nuevoNodo = new Nodo<T>(id_, nombre_, artista_, album_, genero_, directorio_);
+    incrementarContadorID();
+    Nodo<T> *nuevoNodo = new Nodo<T>(to_string(contadorIDs), nombre_, artista_, album_, genero_, directorio_);
     nuevoNodo->duracion = getAudioFileDuration(directorio_);
-    Nodo<T> *temp = ptrCabeza;
 
-    int contador = 0;
     if (!ptrCabeza)
     {
         ptrCabeza = nuevoNodo;
     }
     else
     {
-        if (ptrCabeza->id == id_)
+        Nodo<T> *temp = ptrCabeza;
+        while (temp->siguiente != ptrCabeza)
         {
-            cout << "\033[1;31m ERR: ID previamente registrado \033[0m\n"
-                 << endl;
-            system("pause");
-        }
-        else
-        {
-            while (temp->siguiente != ptrCabeza)
+            if (temp->siguiente->id == to_string(contadorIDs))
             {
-                if (temp->siguiente->id == id_)
-                {
-                    contador++;
-                }
+                incrementarContadorID();
+                nuevoNodo->id = to_string(contadorIDs);
+                temp = ptrCabeza; // Reinicia la búsqueda desde el principio
+            }
+            else
+            {
                 temp = temp->siguiente;
             }
-
-            if (contador == 0)
-            {
-                nuevoNodo->siguiente = temp->siguiente;
-                temp->siguiente = nuevoNodo;
-            }
         }
+        nuevoNodo->siguiente = temp->siguiente;
+        temp->siguiente = nuevoNodo;
     }
+}
+
+template <typename T>
+void ListaCircular<T>::incrementarContadorID()
+{
+    contadorIDs++;
+}
+
+template <typename T>
+Nodo<T> *ListaCircular<T>::encontrarUltimoNodo()
+{
+    Nodo<T> *temp = ptrCabeza;
+    while (temp->siguiente != ptrCabeza)
+    {
+        temp = temp->siguiente;
+    }
+    return temp;
 }
 
 template <typename T>
@@ -556,11 +549,10 @@ void ListaCircular<T>::reproducirMusica()
     {
         reproduciendo = true;
         musicPlayer.play();
-
     }
     else
     {
-        cout << "\033[1;31m Lista vacia \033[0m\n"
+        cout << "\033[1;31m Lista vacía \033[0m\n"
              << endl;
     }
 }
@@ -574,7 +566,7 @@ void ListaCircular<T>::pausarMusica()
     }
     else
     {
-        cout << "\033[1;31m Lista vacia \033[0m\n"
+        cout << "\033[1;31m Lista vacía \033[0m\n"
              << endl;
     }
 }
@@ -635,42 +627,38 @@ void Menu::ejecutarOpcion(int opcion, ListaCircular<string> &lista_circular)
     switch (opcion)
     {
     case 1:
-        validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
-        id = to_string(id_int);
 
-        cout << "--> Ingrese el  Nombre: ";
+        cout << "--> Ingrese el Nombre: ";
         getline(cin, nombre);
-        cout << "--> Ingrese el  Artista: ";
+        cout << "--> Ingrese el Artista: ";
         getline(cin, artista);
-        cout << "--> Ingrese el  Album: ";
+        cout << "--> Ingrese el Album: ";
         getline(cin, album);
-        cout << "--> Ingrese el  Genero: ";
+        cout << "--> Ingrese el Genero: ";
         getline(cin, genero);
-        cout << "--> Ingrese el  Directorio: ";
+        cout << "--> Ingrese el Directorio: ";
         getline(cin, directorio);
 
         directorio = convertirRuta(directorio);
 
-        lista_circular.agregar_al_principio(id, nombre, artista, album, genero, directorio);
+        lista_circular.agregar_al_principio(nombre, artista, album, genero, directorio);
         break;
     case 2:
-        validarParametroEntero(&id_int, id_validar, "Ingrese el ID");
-        id = to_string(id_int);
 
-        cout << "--> Ingrese el  Nombre: ";
+        cout << "--> Ingrese el Nombre: ";
         getline(cin, nombre);
-        cout << "--> Ingrese el  Artista: ";
+        cout << "--> Ingrese el Artista: ";
         getline(cin, artista);
-        cout << "--> Ingrese el  Album: ";
+        cout << "--> Ingrese el Album: ";
         getline(cin, album);
-        cout << "--> Ingrese el  Genero: ";
+        cout << "--> Ingrese el Genero: ";
         getline(cin, genero);
-        cout << "--> Ingrese el  Directorio: ";
+        cout << "--> Ingrese el Directorio: ";
         getline(cin, directorio);
 
         directorio = convertirRuta(directorio);
 
-        lista_circular.agregar_al_final(id, nombre, artista, album, genero, directorio);
+        lista_circular.agregar_al_final(nombre, artista, album, genero, directorio);
         break;
 
     case 11:
@@ -722,17 +710,14 @@ void hiloReproducirMusica(ListaCircular<string> &lista_circular)
 
             lista_circular.musicPlayer.play();
 
-            // Obtener la duración de la canción actual
-            sf::Time duration = lista_circular.musicPlayer.getDuration();
-
             // Esperar la duración de la canción actual
-            sf::sleep(duration);
+            sf::sleep(lista_circular.musicPlayer.getDuration());
 
-            // Verificar si aún se desea reproducir la siguiente canción
+            // Pausar si no se desea reproducir la siguiente canción
             if (!lista_circular.reproduciendo)
             {
                 lista_circular.musicPlayer.pause();
-                continue; // Salir del bucle y esperar la siguiente iteración
+                continue;
             }
 
             lista_circular.ptrCabeza = lista_circular.ptrCabeza->siguiente;

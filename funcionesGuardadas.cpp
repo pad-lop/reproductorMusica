@@ -1,3 +1,5 @@
+/*
+ 
  void buscar_por_posicion(int posicion);
     void buscar_nombre(T);
     void modificar(T, T, T, T, T, T, T);
@@ -339,7 +341,6 @@ void ListaCircular<T>::buscar_nombre(T nombre_)
 
 
 
-/*
     case 3:
         int posicion;
         validarParametroEntero(&posicion, posicion_validar, "Ingrese la posicion a buscar");
