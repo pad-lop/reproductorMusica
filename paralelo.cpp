@@ -2,98 +2,96 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include <atomic>
 
 class MusicPlayer {
 public:
-    MusicPlayer(const std::string& filePath) {
+    MusicPlayer(const std::string& filePath) : isPaused(false) {
         if (!music.openFromFile(filePath)) {
-            std::cerr << "Error al cargar el archivo de música.\n";
-            std::exit(1);
+            throw std::runtime_error("Error al cargar el archivo de música.");
         }
-        music.setLoop(true);
-        isPaused = false;
     }
 
     void play() {
-        music.play();
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!isPaused) {
+            music.play();
+        }
     }
 
     void pause() {
+        std::lock_guard<std::mutex> lock(mutex);
         if (!isPaused) {
             music.pause();
             isPaused = true;
-            std::cout << "Música pausada.\n";
-        } else {
-            std::cout << "La música ya está pausada.\n";
         }
     }
 
     void resume() {
+        std::lock_guard<std::mutex> lock(mutex);
         if (isPaused) {
             music.play();
             isPaused = false;
-            std::cout << "Música reanudada.\n";
-        } else {
-            std::cout << "La música no está pausada.\n";
         }
     }
 
     void stop() {
+        std::lock_guard<std::mutex> lock(mutex);
         music.stop();
+        isPaused = false;
     }
 
 private:
     sf::Music music;
-    bool isPaused;
+    std::mutex mutex;
+    std::atomic<bool> isPaused;
 };
 
-class MusicController {
-public:
-    MusicController(MusicPlayer& player) : musicPlayer(player) {}
+void musicControl(MusicPlayer& musicPlayer) {
+    while (true) {
+        int command;
+        std::cout << "Ingrese el comando (1) pausar / (2) reanudar / (3) detener / (4) salir: ";
+        std::cin >> command;
 
-    void startControl() {
-        while (true) {
-            int command;
-            std::cout << "Ingrese el comando (1) pausar / (2) reanudar / (3) detener: ";
-            std::cin >> command;
-
-            std::unique_lock<std::mutex> lock(mutex);
-
-            switch (command) {
-            case 1:
-                musicPlayer.pause();
-                break;
-            case 2:
-                musicPlayer.resume();
-                break;
-            case 3:
-                musicPlayer.stop();
-                return;
-            default:
-                std::cout << "Comando no reconocido.\n";
-            }
+        switch (command) {
+        case 1:
+            musicPlayer.pause();
+            std::cout << "Música pausada.\n";
+            break;
+        case 2:
+            musicPlayer.resume();
+            std::cout << "Música reanudada.\n";
+            break;
+        case 3:
+            musicPlayer.stop();
+            std::cout << "Música detenida.\n";
+            break;
+        case 4:
+            return; // Salir del bucle y finalizar el hilo
+        default:
+            std::cout << "Comando no reconocido.\n";
         }
     }
-
-private:
-    MusicPlayer& musicPlayer;
-    std::mutex mutex;
-};
+}
 
 int main() {
-    MusicPlayer musicPlayer("C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/Franz Ferdinand - This fffire - New Version.wav");
+    try {
+        MusicPlayer musicPlayer("C:/Users/Luisf/Desktop/Estructuras de Datos/Proyecto Modulo 3/Musica/Franz Ferdinand - This fffire - New Version.wav");
 
-    std::thread musicThread([&]() {
-        musicPlayer.play();
-    });
+        std::thread musicThread([&]() {
+            musicPlayer.play();
+        });
 
-    MusicController musicController(musicPlayer);
-    std::thread controlThread([&]() {
-        musicController.startControl();
-    });
+        std::thread controlThread([&]() {
+            musicControl(musicPlayer);
+        });
 
-    musicThread.join();
-    controlThread.join();
+        musicThread.join();
+        controlThread.join();
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
 
     return 0;
 }
